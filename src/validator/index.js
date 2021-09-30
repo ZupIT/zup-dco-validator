@@ -1,3 +1,4 @@
+
 /*
  * Copyright 2020 ZUP IT SERVICOS EM TECNOLOGIA E INOVACAO SA
  *
@@ -15,25 +16,13 @@
  */
 
 const github = require('@actions/github');
+const core = require('@actions/core');
 
 const validateCommitSignatures = () => {
   const octokit = github.getOctokit(process.env.GITHUB_TOKEN)
-  let { payload, repo, eventName, sha, ref } = github.context
+  let { payload, eventName } = github.context
   const { pull_request: pr } = payload
 
-  if (pr !== undefined) {
-    sha = pr.head.sha
-    ref = pr.head.ref
-  }
-
-  const status = {
-    name: 'Result',
-    head_branch: ref,
-    head_sha: sha,
-    status: 'completed',
-    started_at: new Date(),
-    ...repo
-  }
 
   const loadCommitsForPullRequest = (commitsUrl) => {
     return octokit.request({ method: "GET", url: commitsUrl })
@@ -70,39 +59,21 @@ const validateCommitSignatures = () => {
 
     const [notSigned, notVerified] = failedCommits
 
-    const message = `${notSigned.length ? `Some commits are incorrectly signed off :
+    const message = `${notSigned.length ? `\n Some commits are incorrectly signed off :
       ${notSigned.map(commitSha => `\n ${commitSha}`).join(' ')}` : ''}
     ${notVerified.length ? `\nGPG Verification not found for some commits :
       ${notVerified.map(commitSha => `\n ${commitSha}`).join(' ')}` : ''}
     `
+    core.setFailed(message)
 
-    const failureStatus = {
-      ...status,
-      conclusion: 'failure',
-      completed_at: new Date(),
-      output: {
-        title: 'Failed Validation - Problems were found in some of your commits',
-        summary: message
-      }
-    }
-
-    return octokit.rest.checks.create(failureStatus)
   }
 
   const createSuccessCheckVerification = () => {
+    core.info("Congratulations!!! All your commits are signed")
+  }
 
-    const successStatus = {
-      ...status,
-      conclusion: 'success',
-      completed_at: new Date(),
-      output: {
-        title: 'Successful Validation',
-        summary: `Congrats, all your commits are signed!`
-      }
-    }
-
-    return octokit.rest.checks.create(successStatus)
-
+  const createCheckErrorForFailedAction = () => {
+    core.setFailed('Validation error. Please, make sure you are using the correct configuration for this action. https://github.com/ZupIT/zup-dco-validator')
   }
 
   const start = async () => {
@@ -110,39 +81,24 @@ const validateCommitSignatures = () => {
     let notSignedCommits = []
     let notGpgVerifiedCommits = []
 
-
     const { data: prCommits } = await loadCommitsForPullRequest(pr.commits_url)
 
     notSignedCommits = checkCommitsSignOff(prCommits)
-    console.log('NOT SIGNED COMMITS', notSignedCommits)
 
-
-    if (shouldVerifyGpg === true)
+    if (shouldVerifyGpg === 'true')
       notGpgVerifiedCommits = checkCommitsGpgVerification(prCommits)
 
-    console.log('NOT GPG VERIFIED COMMITS', notGpgVerifiedCommits)
-
     if (notSignedCommits.length || notGpgVerifiedCommits.length)
-      return await createFailedCheckVerification(notSignedCommits, notGpgVerifiedCommits)
+      return createFailedCheckVerification(notSignedCommits, notGpgVerifiedCommits)
 
     return createSuccessCheckVerification()
+
   }
 
   if (eventName === 'pull_request') {
-    return start()
+    start()
   } else {
-
-    const failedCheck = {
-      ...status,
-      conclusion: 'failure',
-      completed_at: new Date(),
-      output: {
-        title: 'Failed Validation',
-        summary: 'Please, make sure you are using the correct configuration for this action. https://github.com/ZupIT/zup-dco-validator'
-      }
-    }
-
-    return octokit.rest.checks.create(failedCheck)
+    createCheckErrorForFailedAction()
   }
 
 
