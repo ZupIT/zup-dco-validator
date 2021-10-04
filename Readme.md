@@ -24,6 +24,17 @@ jobs:
           VALIDATE_GPG: false
 ```
 
+### Skipping authors
+
+If you have a list of authors or automated tools that push into your code without the need for validation you can skip them with another environment variable.
+
+Each author should be added to the ``SKIP_AUTHORS`` variable with a comma separator between them
+e.g
+```sh
+  env:
+    SKIP_AUTHORS: "Author A,Author B"
+```
+
 ## Contributing
 
 If you have suggestions for how dco-validator could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
