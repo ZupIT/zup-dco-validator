@@ -29,7 +29,9 @@ jobs:
 If you have a list of authors or automated tools that push into your code without the need for validation you can skip them with another environment variable.
 
 Each author should be added to the ``SKIP_AUTHORS`` variable with a comma separator between them
-e.g: SKIP_AUTHORS: "Author A,Author B"
+```e.g: 
+    env:
+      SKIP_AUTHORS: "Author A,Author B"```
 
 
 ## Contributing
